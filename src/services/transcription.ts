@@ -16,8 +16,9 @@ import type {
   TimeSignatureChange,
   TrackNote,
 } from '../types'
+import { assetUrl } from '../utils/assets'
 
-const MODEL_URL = '/basic-pitch-model/model.json'
+const MODEL_URL = assetUrl('/basic-pitch-model/model.json')
 const DEFAULT_META: ScoreMeta = {
   title: 'Nova Partitura',
   composer: 'Audio to Score Studio',
