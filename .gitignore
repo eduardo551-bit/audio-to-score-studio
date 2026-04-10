@@ -1,0 +1,5 @@
+node_modules/
+dist/
+public/basic-pitch-model/
+package-lock.json
+tsconfig.app.tsbuildinfo
