@@ -12,6 +12,7 @@ import { ProjectControls } from './components/ProjectControls'
 import { ScaleFinder } from './components/ScaleFinder'
 import { ScorePreview } from './components/ScorePreview'
 import { TunerPanel } from './components/TunerPanel'
+import { assetUrl } from './utils/assets'
 import {
   exportProjectMidi,
   exportMusicXml,
@@ -188,7 +189,7 @@ export default function App() {
             target="_blank"
             rel="noreferrer"
           >
-            <img src="/sr-sergio-roberto.jpg" alt="Sergio Roberto tocando violão" className="hero-portrait" />
+            <img src={assetUrl('/sr-sergio-roberto.jpg')} alt="Sergio Roberto tocando violão" className="hero-portrait" />
             <div className="portrait-badge">
               <span>SR</span>
               <strong>sergio_roberto_music</strong>
