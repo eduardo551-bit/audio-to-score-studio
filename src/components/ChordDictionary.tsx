@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import Chord from '@techies23/react-chords'
 import guitarDb from '@tombatossals/chords-db/lib/guitar.json'
 import { CavacoDiagram } from './CavacoDiagram'
-import { CavacoReferenceDictionary } from './CavacoReferenceDictionary'
+import { CavacoDictionary } from './CavacoDictionary'
 import { useLocalStorage } from '../utils/useLocalStorage'
 
 // ── Guitar DB types ──────────────────────────────────────────────────────────
@@ -412,7 +412,12 @@ export function ChordDictionary() {
           </div>
 
           {cavacoView === 'dicionario' && (
-            <CavacoReferenceDictionary />
+            <CavacoDictionary onEditChord={(pos, name) => {
+              setBuilderFrets([...pos.frets] as [number, number, number, number])
+              setBuilderBase(pos.baseFret)
+              setBuilderName(name)
+              setCavacoView('builder')
+            }} />
           )}
 
           {cavacoView === 'builder' && (

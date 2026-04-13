@@ -1,4 +1,9 @@
-import type { CavacoPosition } from '../data/cavachoChords'
+interface CavacoPosition {
+  frets: [number, number, number, number]
+  fingers: [number, number, number, number]
+  baseFret: number
+  barres?: number[]
+}
 
 interface Props {
   position: CavacoPosition
@@ -7,23 +12,22 @@ interface Props {
 
 const STRINGS = 4
 const FRETS = 4
-const SX = 28      // string spacing
-const FY = 26      // fret spacing
-const MARGIN_LEFT = 28
-const MARGIN_TOP = 32
+const SX = 26
+const FY = 25
+const MARGIN_LEFT = 20
+const MARGIN_TOP = 26
 const DOT_R = 8
-const WIDTH = MARGIN_LEFT + SX * (STRINGS - 1) + MARGIN_LEFT
-const HEIGHT = MARGIN_TOP + FY * FRETS + 20
+const WIDTH = MARGIN_LEFT + SX * (STRINGS - 1) + 28
+const HEIGHT = MARGIN_TOP + FY * FRETS + 18
 
 export function CavacoDiagram({ position, chordName }: Props) {
-  const { frets, fingers, baseFret, barres = [] } = position
+  const { frets, baseFret, barres = [] } = position
   const barreFretSet = new Set(barres)
 
-  // Group dots by fret for barre detection
-  const barreFrets = barres.map(b => ({
-    fret: b,
-    fromStr: frets.findIndex(f => f === b),
-    toStr: frets.lastIndexOf(b),
+  const barreFrets = barres.map((fret) => ({
+    fret,
+    fromStr: frets.findIndex((value) => value === fret),
+    toStr: frets.lastIndexOf(fret),
   }))
 
   return (
@@ -32,144 +36,102 @@ export function CavacoDiagram({ position, chordName }: Props) {
       className="cavaco-svg"
       aria-label={`Diagrama do acorde ${chordName}`}
     >
-      {/* Nut or position indicator */}
+      <line
+        x1={MARGIN_LEFT - 4}
+        x2={MARGIN_LEFT}
+        y1={MARGIN_TOP - 12}
+        y2={MARGIN_TOP}
+        stroke="#2a241e"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <line
+        x1={MARGIN_LEFT + SX * (STRINGS - 1)}
+        x2={MARGIN_LEFT + SX * (STRINGS - 1) + 4}
+        y1={MARGIN_TOP}
+        y2={MARGIN_TOP - 12}
+        stroke="#2a241e"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+
       {baseFret === 1 ? (
-        <rect
-          x={MARGIN_LEFT - 1}
-          y={MARGIN_TOP - 5}
-          width={SX * (STRINGS - 1) + 2}
-          height={5}
-          fill="#1e1b18"
-          rx="1"
+        <line
+          x1={MARGIN_LEFT}
+          x2={MARGIN_LEFT + SX * (STRINGS - 1)}
+          y1={MARGIN_TOP}
+          y2={MARGIN_TOP}
+          stroke="#2a241e"
+          strokeWidth="1.8"
         />
       ) : (
         <text
-          x={MARGIN_LEFT - 10}
-          y={MARGIN_TOP + FY * 0.5}
+          x={MARGIN_LEFT - 8}
+          y={MARGIN_TOP + FY * 0.6}
           textAnchor="end"
           dominantBaseline="central"
-          fontSize="10"
+          fontSize="11"
           fontWeight="700"
-          fill="#d57a00"
-          fontFamily="'Segoe UI', sans-serif"
+          fill="#ea9419"
+          fontFamily="Georgia, serif"
         >
-          {baseFret}ª
+          {baseFret}a
         </text>
       )}
 
-      {/* Fret lines */}
-      {Array.from({ length: FRETS + 1 }, (_, i) => (
+      {Array.from({ length: FRETS }, (_, index) => (
         <line
-          key={`fret-${i}`}
+          key={`fret-${index}`}
           x1={MARGIN_LEFT}
           x2={MARGIN_LEFT + SX * (STRINGS - 1)}
-          y1={MARGIN_TOP + FY * i}
-          y2={MARGIN_TOP + FY * i}
-          stroke="#c8b898"
-          strokeWidth={i === 0 ? 1.5 : 1}
+          y1={MARGIN_TOP + FY * (index + 1)}
+          y2={MARGIN_TOP + FY * (index + 1)}
+          stroke="#5c5348"
+          strokeWidth="1.2"
         />
       ))}
 
-      {/* String lines */}
-      {Array.from({ length: STRINGS }, (_, s) => (
+      {Array.from({ length: STRINGS }, (_, stringIndex) => (
         <line
-          key={`str-${s}`}
-          x1={MARGIN_LEFT + SX * s}
-          x2={MARGIN_LEFT + SX * s}
+          key={`string-${stringIndex}`}
+          x1={MARGIN_LEFT + SX * stringIndex}
+          x2={MARGIN_LEFT + SX * stringIndex}
           y1={MARGIN_TOP}
           y2={MARGIN_TOP + FY * FRETS}
-          stroke="#1e1b18"
-          strokeWidth={2}
+          stroke="#5c5348"
+          strokeWidth={stringIndex === 0 || stringIndex === STRINGS - 1 ? 1.7 : 1.2}
           strokeLinecap="round"
         />
       ))}
 
-      {/* Barre lines */}
       {barreFrets.map(({ fret, fromStr, toStr }) => {
         if (fromStr < 0 || toStr <= fromStr) return null
-        const cy = MARGIN_TOP + FY * (fret - 0.5)
-        const x1 = MARGIN_LEFT + SX * fromStr
-        const x2 = MARGIN_LEFT + SX * toStr
+
         return (
           <line
             key={`barre-${fret}`}
-            x1={x1} x2={x2} y1={cy} y2={cy}
-            stroke="#ff9417"
-            strokeWidth={DOT_R * 1.8}
+            x1={MARGIN_LEFT + SX * fromStr}
+            x2={MARGIN_LEFT + SX * toStr}
+            y1={MARGIN_TOP + FY * (fret - 0.5)}
+            y2={MARGIN_TOP + FY * (fret - 0.5)}
+            stroke="#f39a1d"
+            strokeWidth="5"
             strokeLinecap="round"
           />
         )
       })}
 
-      {/* Dots */}
-      {frets.map((fret, si) => {
-        const cx = MARGIN_LEFT + SX * si
-        if (fret === -1) {
-          // Muted
-          return (
-            <g key={`dot-${si}`}>
-              <line x1={cx - 5} y1={MARGIN_TOP - 16} x2={cx + 5} y2={MARGIN_TOP - 6} stroke="#1e1b18" strokeWidth="1.5" />
-              <line x1={cx + 5} y1={MARGIN_TOP - 16} x2={cx - 5} y2={MARGIN_TOP - 6} stroke="#1e1b18" strokeWidth="1.5" />
-            </g>
-          )
-        }
-        if (fret === 0) {
-          // Open
-          return (
-            <circle
-              key={`dot-${si}`}
-              cx={cx} cy={MARGIN_TOP - 11}
-              r={5}
-              fill="none"
-              stroke="#1e1b18"
-              strokeWidth="1.5"
-            />
-          )
-        }
-        if (barreFretSet.has(fret)) return null // drawn as barre line
-        const cy = MARGIN_TOP + FY * (fret - 0.5)
-        const finger = fingers[si]
-        return (
-          <g key={`dot-${si}`}>
-            <circle cx={cx} cy={cy} r={DOT_R} fill="#ff9417" />
-            {finger > 0 && (
-              <text
-                x={cx} y={cy}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize="9"
-                fontWeight="700"
-                fill="#1e1b18"
-                fontFamily="'Segoe UI', sans-serif"
-              >
-                {finger}
-              </text>
-            )}
-          </g>
-        )
-      })}
+      {frets.map((fret, stringIndex) => {
+        if (fret <= 0 || barreFretSet.has(fret)) return null
 
-      {/* Open string circles above barre dots */}
-      {barreFrets.map(({ fret, fromStr, toStr }) => {
-        const cy = MARGIN_TOP + FY * (fret - 0.5)
-        const finger = fingers[fromStr]
         return (
-          <g key={`barre-dot-${fret}`}>
-            {finger > 0 && (
-              <text
-                x={MARGIN_LEFT + SX * Math.round((fromStr + toStr) / 2)}
-                y={cy}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize="9"
-                fontWeight="700"
-                fill="#1e1b18"
-                fontFamily="'Segoe UI', sans-serif"
-              >
-                {finger}
-              </text>
-            )}
-          </g>
+          <circle
+            key={`dot-${stringIndex}`}
+            cx={MARGIN_LEFT + SX * stringIndex}
+            cy={MARGIN_TOP + FY * (fret - 0.5)}
+            r={DOT_R}
+            fill="#f39a1d"
+          />
         )
       })}
     </svg>
