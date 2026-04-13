@@ -497,6 +497,46 @@ select {
   justify-items: center;
 }
 
+.cavaco-reference-card {
+  display: grid;
+  gap: 14px;
+}
+
+.cavaco-reference-hint {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(216, 154, 51, 0.12);
+  color: #5f4a2a;
+}
+
+.cavaco-reference-frame {
+  position: relative;
+  width: 143px;
+  height: 349px;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(120, 96, 60, 0.15);
+  background: linear-gradient(180deg, #fffdf8 0%, #f4ead9 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.75);
+}
+
+.cavaco-reference-image {
+  position: absolute;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.cavaco-reference-caption {
+  margin: 0;
+  color: #756550;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
 .cavaco-svg {
   width: 100%;
   max-width: 128px;
@@ -2185,4 +2225,3 @@ select:focus {
     display: block;
   }
 }
-
