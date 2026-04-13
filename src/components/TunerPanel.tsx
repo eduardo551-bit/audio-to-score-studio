@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { YIN } from 'pitchfinder'
+import { useLocalStorage } from '../utils/useLocalStorage'
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const HISTORY_SIZE = 5
+const A4_OPTIONS = [432, 440, 442, 444] as const
 
 function rmsLevel(buffer: Float32Array): number {
   let rms = 0
@@ -20,11 +22,11 @@ function median(values: number[]): number {
     : ordered[middle]
 }
 
-function frequencyToNote(frequency: number) {
-  const midi = Math.round(69 + 12 * Math.log2(frequency / 440))
+function frequencyToNote(frequency: number, a4: number) {
+  const midi = Math.round(69 + 12 * Math.log2(frequency / a4))
   const noteIndex = ((midi % 12) + 12) % 12
   const octave = Math.floor(midi / 12) - 1
-  const idealFrequency = 440 * Math.pow(2, (midi - 69) / 12)
+  const idealFrequency = a4 * Math.pow(2, (midi - 69) / 12)
   const cents = Math.round(1200 * Math.log2(frequency / idealFrequency))
   return {
     label: `${NOTE_NAMES[noteIndex]}${octave}`,
@@ -34,6 +36,7 @@ function frequencyToNote(frequency: number) {
 }
 
 export function TunerPanel() {
+  const [a4, setA4] = useLocalStorage<number>('tuner-a4', 440)
   const [active, setActive] = useState(false)
   const [note, setNote] = useState<string>('—')
   const [frequency, setFrequency] = useState<string>('0.0')
@@ -61,6 +64,15 @@ export function TunerPanel() {
       audioContextRef.current?.close()
     }
   }, [])
+
+  // Reinicia o detector quando a4 muda (não afeta a detecção, mas reseta histórico)
+  useEffect(() => {
+    historyRef.current = []
+    lastStableNoteRef.current = '—'
+    setNote('—')
+    setFrequency('0.0')
+    setCents(0)
+  }, [a4])
 
   async function startTuner() {
     try {
@@ -103,7 +115,7 @@ export function TunerPanel() {
         if (historyRef.current.length >= 3) {
           setSignal('listening')
           const smoothed = median(historyRef.current)
-          const result = frequencyToNote(smoothed)
+          const result = frequencyToNote(smoothed, a4)
           const noteChanged = result.label !== lastStableNoteRef.current
           const stableEnough = !noteChanged || Math.abs(result.cents) < 35
           if (stableEnough) {
@@ -119,7 +131,7 @@ export function TunerPanel() {
 
       readPitch()
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel acessar o microfone.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível acessar o microfone.')
     }
   }
 
@@ -164,8 +176,24 @@ export function TunerPanel() {
         />
       </div>
       <p className="muted">
-        {Math.abs(cents) <= 8 ? 'Afinacao centralizada.' : `${cents > 0 ? '+' : ''}${cents} cents`}
+        {Math.abs(cents) <= 8 ? 'Afinação centralizada.' : `${cents > 0 ? '+' : ''}${cents} cents`}
       </p>
+
+      <div className="tuner-a4-row">
+        <span className="tuner-a4-label">Referência A4</span>
+        <div className="tuner-a4-pills">
+          {A4_OPTIONS.map(hz => (
+            <button
+              key={hz}
+              className={`tuner-a4-btn ${a4 === hz ? 'tuner-a4-btn-active' : ''}`}
+              onClick={() => setA4(hz)}
+            >
+              {hz}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {error && <p className="error-inline">{error}</p>}
     </section>
   )

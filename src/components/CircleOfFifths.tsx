@@ -4,6 +4,17 @@ const MAJOR = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F']
 const MINOR_DISPLAY = ['La m', 'Mi m', 'Si m', 'F# m', 'C# m', 'G# m', 'D# m', 'Sib m', 'Fa m', 'Do m', 'Sol m', 'Re m']
 const SIGS = [0, 1, 2, 3, 4, 5, 6, -5, -4, -3, -2, -1]
 
+// Pitch class de cada tônica na ordem do Círculo das Quintas
+const COF_PCS = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
+
+const SHARP_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+const FLAT_NAMES  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
+
+const MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11]
+const DIATONIC_QUALITIES = ['M', 'm', 'm', 'M', 'M', 'm', '°'] as const
+const ROMAN_UPPER = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
+const ROMAN_LOWER = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii']
+
 const CX = 190
 const CY = 190
 const R_OUTER = 178
@@ -31,9 +42,30 @@ function sigLabel(n: number): string {
   return n > 0 ? `${n} sustenido${n > 1 ? 's' : ''}` : `${Math.abs(n)} bemol${Math.abs(n) > 1 ? 'is' : ''}`
 }
 
+function buildDiatonicChords(cofIndex: number) {
+  const rootPc = COF_PCS[cofIndex]
+  const useFlat = SIGS[cofIndex] < 0
+  const names = useFlat ? FLAT_NAMES : SHARP_NAMES
+
+  return MAJOR_SCALE_INTERVALS.map((interval, i) => {
+    const pc = (rootPc + interval) % 12
+    const quality = DIATONIC_QUALITIES[i]
+    const isMinor = quality === 'm' || quality === '°'
+    const roman = isMinor ? ROMAN_LOWER[i] : ROMAN_UPPER[i]
+    const suffix = quality === '°' ? '°' : quality === 'm' ? 'm' : ''
+    return {
+      roman: roman + (quality === '°' ? '°' : ''),
+      name: names[pc] + suffix,
+      quality,
+    }
+  })
+}
+
 export function CircleOfFifths() {
   const [active, setActive] = useState<number | null>(null)
   const [hovered, setHovered] = useState<number | null>(null)
+
+  const diatonicChords = active !== null ? buildDiatonicChords(active) : null
 
   return (
     <section className="panel chord-panel">
@@ -76,7 +108,6 @@ export function CircleOfFifths() {
                 role="button"
                 aria-label={`Tom ${MAJOR[i]}`}
               >
-                {/* Outer wedge — major */}
                 <path
                   d={wedge(R_OUTER, R_MID, startDeg, endDeg)}
                   fill={outerFill}
@@ -98,7 +129,6 @@ export function CircleOfFifths() {
                   {MAJOR[i]}
                 </text>
 
-                {/* Inner wedge — relative minor */}
                 <path
                   d={wedge(R_MID, R_INNER, startDeg, endDeg)}
                   fill={innerFill}
@@ -122,7 +152,6 @@ export function CircleOfFifths() {
             )
           })}
 
-          {/* Center circle */}
           <circle cx={CX} cy={CY} r={R_INNER - 3} fill="#fffbf3" stroke="#e2d5bc" strokeWidth="1.5" />
 
           {active !== null ? (
@@ -152,30 +181,49 @@ export function CircleOfFifths() {
           </div>
 
           {active !== null ? (
-            <div className="cof-info">
-              <div className="cof-info-row">
-                <span>Tom</span>
-                <strong>{MAJOR[active]} maior</strong>
+            <>
+              <div className="cof-info">
+                <div className="cof-info-row">
+                  <span>Tom</span>
+                  <strong>{MAJOR[active]} maior</strong>
+                </div>
+                <div className="cof-info-row">
+                  <span>Relativo</span>
+                  <strong>{MINOR_DISPLAY[active]}</strong>
+                </div>
+                <div className="cof-info-row">
+                  <span>Dominante</span>
+                  <strong>{MAJOR[(active + 1) % 12]}</strong>
+                </div>
+                <div className="cof-info-row">
+                  <span>Subdominante</span>
+                  <strong>{MAJOR[(active + 11) % 12]}</strong>
+                </div>
+                <div className="cof-info-row">
+                  <span>Armadura</span>
+                  <strong>{sigLabel(SIGS[active])}</strong>
+                </div>
               </div>
-              <div className="cof-info-row">
-                <span>Relativo</span>
-                <strong>{MINOR_DISPLAY[active]}</strong>
-              </div>
-              <div className="cof-info-row">
-                <span>Dominante</span>
-                <strong>{MAJOR[(active + 1) % 12]}</strong>
-              </div>
-              <div className="cof-info-row">
-                <span>Subdominante</span>
-                <strong>{MAJOR[(active + 11) % 12]}</strong>
-              </div>
-              <div className="cof-info-row">
-                <span>Armadura</span>
-                <strong>{sigLabel(SIGS[active])}</strong>
-              </div>
-            </div>
+
+              {diatonicChords && (
+                <div className="cof-diatonic">
+                  <p className="eyebrow" style={{ marginBottom: 8 }}>Acordes diatônicos</p>
+                  <div className="cof-diatonic-grid">
+                    {diatonicChords.map(({ roman, name, quality }) => (
+                      <div
+                        key={roman}
+                        className={`cof-diatonic-chip cof-diatonic-${quality}`}
+                      >
+                        <span className="cof-diatonic-roman">{roman}</span>
+                        <strong className="cof-diatonic-name">{name}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
-            <p className="cof-empty-hint">Selecione um tom para ver dominante, subdominante e armadura de clave.</p>
+            <p className="cof-empty-hint">Selecione um tom para ver dominante, subdominante, armadura e acordes diatônicos.</p>
           )}
         </div>
       </div>

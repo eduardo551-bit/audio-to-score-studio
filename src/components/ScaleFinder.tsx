@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useLocalStorage } from '../utils/useLocalStorage'
 
 const ROOTS_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -187,10 +187,44 @@ function Fretboard({ openPcs, stringLabels, scalePcs, rootPc, useFlat }: Fretboa
   )
 }
 
+function playScaleAudio(rootPc: number, intervals: number[]) {
+  const ctx = new AudioContext()
+  // C4 = midi 60; ajusta a oitava para que a escala fique na região central
+  const rootMidi = 60 + rootPc
+
+  const allMidis = [
+    ...intervals.map(i => rootMidi + i),
+    rootMidi + 12, // tônica na oitava acima (finaliza a escala)
+  ]
+
+  allMidis.forEach((midi, i) => {
+    const freq = 440 * Math.pow(2, (midi - 69) / 12)
+    const t = ctx.currentTime + i * 0.32
+
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = freq
+    gain.gain.setValueAtTime(0, t)
+    gain.gain.linearRampToValueAtTime(0.28, t + 0.025)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(t)
+    osc.stop(t + 0.30)
+  })
+
+  // Fecha o contexto após a reprodução terminar
+  const totalDuration = (allMidis.length * 0.32 + 0.35) * 1000
+  window.setTimeout(() => ctx.close(), totalDuration)
+}
+
 export function ScaleFinder() {
   const [root, setRoot] = useLocalStorage('scale-root', 'C')
   const [scaleName, setScaleName] = useLocalStorage('scale-name', 'Maior')
   const [instrument, setInstrument] = useLocalStorage<'violao' | 'cavaco'>('scale-instrument', 'violao')
+  const [playing, setPlaying] = useState(false)
+  const playTimeoutRef = useRef<number | null>(null)
 
   const rootPc = ROOTS_SELECT.indexOf(root)
   const intervals = SCALES[scaleName]
@@ -220,6 +254,14 @@ export function ScaleFinder() {
     })
   }, [scaleName, intervals, rootPc, useFlat])
 
+  function handlePlay() {
+    if (playing) return
+    setPlaying(true)
+    playScaleAudio(rootPc, intervals)
+    const totalMs = (intervals.length + 1) * 320 + 350
+    playTimeoutRef.current = window.setTimeout(() => setPlaying(false), totalMs)
+  }
+
   return (
     <section className="panel chord-panel">
       <div className="panel-header">
@@ -227,7 +269,17 @@ export function ScaleFinder() {
           <p className="eyebrow">Harmonia</p>
           <h3>Escalas e Modos</h3>
         </div>
-        <span className="preview-badge">{noteNames.length} notas</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            className={playing ? 'ghost-button' : 'secondary-button'}
+            onClick={handlePlay}
+            disabled={playing}
+            title="Ouvir a escala"
+          >
+            {playing ? '♪ tocando…' : '▶ Ouvir'}
+          </button>
+          <span className="preview-badge">{noteNames.length} notas</span>
+        </div>
       </div>
 
       {/* Instrument toggle */}

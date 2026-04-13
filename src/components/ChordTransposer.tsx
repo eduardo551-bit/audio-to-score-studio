@@ -8,26 +8,47 @@ const KEY_PC: Record<string, number> = {
   F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9,
   'A#': 10, Bb: 10, B: 11,
 }
-// flat-preference keys
 const FLAT_KEYS = new Set([1, 3, 5, 8, 10])
+
+// Regex que identifica tokens de acorde válidos
+const CHORD_TOKEN_RE = /^[A-G][#b]?(m(?:aj7?|in|7|6|9)?|dim|sus[24]?|aug|7|6|9|M7|\+|°|add9|m6|m9|5)?([/][A-G][#b]?)?$/
 
 function transposeRoot(root: string, semitones: number): string {
   const pc = KEY_PC[root]
   if (pc === undefined) return root
   const newPc = ((pc + semitones) % 12 + 12) % 12
-  const useFlat = FLAT_KEYS.has(newPc)
-  return useFlat ? FLAT[newPc] : SHARP[newPc]
+  return FLAT_KEYS.has(newPc) ? FLAT[newPc] : SHARP[newPc]
+}
+
+function transposeToken(token: string, semitones: number): string {
+  return token.replace(
+    /(?<![A-Za-z])([A-G][#b]?)(?=$|[^A-Za-z]|m(?:aj7?|in|7|6|9)?(?=[^a-z]|$)|dim|sus[24]?|aug)/g,
+    (match) => transposeRoot(match, semitones),
+  )
+}
+
+// Uma linha é considerada "linha de acordes" se ≥ 60% dos tokens são acordes válidos
+function isChordLine(line: string): boolean {
+  const tokens = line.trim().split(/\s+/).filter(Boolean)
+  if (tokens.length === 0) return false
+  const chordCount = tokens.filter(t => CHORD_TOKEN_RE.test(t)).length
+  return chordCount / tokens.length >= 0.6
 }
 
 function transposeText(text: string, semitones: number): string {
   if (semitones === 0) return text
-  // Faz match em tokens de acorde: [A-G][#b]? não precedidos por letra,
-  // seguidos de: fim, espaço, número, símbolo, ou sufixo de acorde válido.
-  // Evita transpor letras no meio de palavras (ex: "Empire", "Embora").
   return text.replace(
     /(?<![A-Za-z])([A-G][#b]?)(?=$|[^A-Za-z]|m(?:aj7?|in|7|6|9)?(?=[^a-z]|$)|dim|sus[24]?|aug)/g,
     (match) => transposeRoot(match, semitones),
   )
+}
+
+function transposeChordSheet(text: string, semitones: number): string {
+  if (semitones === 0) return text
+  return text
+    .split('\n')
+    .map(line => (isChordLine(line) ? transposeToken(line, semitones) : line))
+    .join('\n')
 }
 
 const EXAMPLES = [
@@ -37,11 +58,20 @@ const EXAMPLES = [
   'Em  Bm  C  G',
 ]
 
+const CIFRA_EXAMPLE = `Am        G         F        E7
+Quando a saudade aperta o coração
+Dm7       G7        Cmaj7
+E a noite cobre tudo de silêncio`
+
 export function ChordTransposer() {
   const [input, setInput] = useLocalStorage('transposer-input', EXAMPLES[0])
   const [semitones, setSemitones] = useState(0)
+  const [mode, setMode] = useLocalStorage<'livre' | 'cifra'>('transposer-mode', 'livre')
 
-  const output = transposeText(input, semitones)
+  const output = mode === 'cifra'
+    ? transposeChordSheet(input, semitones)
+    : transposeText(input, semitones)
+
   const intervalLabel = semitones === 0 ? 'Original'
     : semitones > 0 ? `+${semitones} semitons`
     : `${semitones} semitons`
@@ -56,6 +86,27 @@ export function ChordTransposer() {
         <span className={`preview-badge ${semitones !== 0 ? 'badge-active' : ''}`}>{intervalLabel}</span>
       </div>
 
+      <div className="instrument-toggle" style={{ marginBottom: 8 }}>
+        <button
+          className={`toggle-chip ${mode === 'livre' ? 'toggle-chip-active' : ''}`}
+          onClick={() => setMode('livre')}
+        >
+          Modo livre
+        </button>
+        <button
+          className={`toggle-chip ${mode === 'cifra' ? 'toggle-chip-active' : ''}`}
+          onClick={() => setMode('cifra')}
+        >
+          Cifra com letra
+        </button>
+      </div>
+
+      {mode === 'cifra' && (
+        <p className="transpose-mode-hint">
+          Linhas de acordes são detectadas automaticamente e transpostas. Linhas de letra são preservadas.
+        </p>
+      )}
+
       <div className="transpose-grid">
         <label className="scale-label">
           <span>Progressão original</span>
@@ -63,8 +114,8 @@ export function ChordTransposer() {
             className="transpose-input"
             value={input}
             onChange={e => setInput(e.target.value)}
-            rows={3}
-            placeholder="Ex: Am  G  F  E7"
+            rows={mode === 'cifra' ? 6 : 3}
+            placeholder={mode === 'cifra' ? 'Cole a cifra completa aqui (acordes + letra)' : 'Ex: Am  G  F  E7'}
             spellCheck={false}
           />
         </label>
@@ -93,7 +144,9 @@ export function ChordTransposer() {
 
       <div className="transpose-output-wrap">
         <span className="transpose-output-label">Resultado</span>
-        <div className="transpose-output">{output || '—'}</div>
+        <div className={`transpose-output${mode === 'cifra' ? ' transpose-output-cifra' : ''}`}>
+          {output || '—'}
+        </div>
         <button className="ghost-button transpose-copy"
           onClick={() => navigator.clipboard?.writeText(output)}>
           Copiar
@@ -104,10 +157,14 @@ export function ChordTransposer() {
         <span>Exemplos:</span>
         {EXAMPLES.map(ex => (
           <button key={ex} className="transpose-example-btn"
-            onClick={() => { setInput(ex); setSemitones(0) }}>
+            onClick={() => { setInput(ex); setSemitones(0); setMode('livre') }}>
             {ex}
           </button>
         ))}
+        <button className="transpose-example-btn"
+          onClick={() => { setInput(CIFRA_EXAMPLE); setSemitones(0); setMode('cifra') }}>
+          Cifra com letra
+        </button>
       </div>
     </section>
   )

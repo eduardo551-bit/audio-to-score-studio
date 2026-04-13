@@ -2023,3 +2023,166 @@ select:focus {
   margin-bottom: 4px;
 }
 
+/* ── Metronome beat dots ─────────────────────── */
+.metronome-beats {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.metro-beat-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: rgba(139, 94, 26, 0.08);
+  border: 2px solid rgba(139, 94, 26, 0.15);
+  color: #b0a090;
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease, transform 80ms ease;
+}
+
+.metro-beat-dot-active {
+  background: rgba(255, 148, 23, 0.18);
+  border-color: #ff9417;
+  color: #7a4a00;
+  transform: scale(1.12);
+}
+
+.metro-beat-dot-accent {
+  background: #8b5e1a;
+  border-color: #6a4010;
+  color: #fff8ed;
+  transform: scale(1.18);
+  box-shadow: 0 0 0 4px rgba(139, 94, 26, 0.2);
+}
+
+/* ── Tuner A4 reference ──────────────────────── */
+.tuner-a4-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.tuner-a4-label {
+  font-size: 0.82rem;
+  color: #6e6556;
+  white-space: nowrap;
+}
+
+.tuner-a4-pills {
+  display: flex;
+  gap: 6px;
+}
+
+.tuner-a4-btn {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(82, 63, 27, 0.18);
+  background: rgba(250, 244, 230, 0.8);
+  color: #6e5a3a;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 140ms;
+}
+
+.tuner-a4-btn:hover {
+  background: rgba(220, 200, 160, 0.8);
+}
+
+.tuner-a4-btn-active {
+  background: linear-gradient(150deg, #8b5e1a, #c8912c);
+  border-color: transparent;
+  color: #fff8ed;
+  box-shadow: 0 2px 8px rgba(100, 64, 18, 0.22);
+}
+
+/* ── Transposer mode hint ────────────────────── */
+.transpose-mode-hint {
+  font-size: 0.78rem;
+  color: #9a8a72;
+  margin: 0 0 10px;
+  line-height: 1.5;
+  padding: 8px 12px;
+  background: rgba(250, 244, 230, 0.6);
+  border-radius: 8px;
+  border: 1px solid rgba(110, 84, 39, 0.1);
+}
+
+.transpose-output-cifra {
+  font-family: 'Segoe UI', monospace;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* ── Circle of Fifths diatonic chords ────────── */
+.cof-diatonic {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e8dcc8;
+}
+
+.cof-diatonic-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.cof-diatonic-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  min-width: 44px;
+  border: 1px solid #e0d0b0;
+  background: #f4edd8;
+}
+
+.cof-diatonic-M {
+  background: rgba(139, 94, 26, 0.1);
+  border-color: rgba(139, 94, 26, 0.25);
+}
+
+.cof-diatonic-m {
+  background: rgba(250, 244, 230, 0.8);
+  border-color: #e0d0b0;
+}
+
+.cof-diatonic-° {
+  opacity: 0.7;
+  background: rgba(250, 244, 230, 0.5);
+}
+
+.cof-diatonic-roman {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #9a8a72;
+  letter-spacing: 0.04em;
+}
+
+.cof-diatonic-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1a1612;
+}
+
+@media (max-width: 1080px) {
+  .cof-wrap {
+    grid-template-columns: 1fr;
+  }
+  .cof-svg {
+    width: 220px;
+    height: 220px;
+    margin: 0 auto;
+    display: block;
+  }
+}
+

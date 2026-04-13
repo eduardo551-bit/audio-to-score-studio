@@ -8,6 +8,7 @@ export function MetronomePanel() {
   const [subdivision, setSubdivision] = useLocalStorage<number>('metro-subdivision', 1)
   const [beatCount, setBeatCount] = useState(0)
   const [isAccentBeat, setIsAccentBeat] = useState(false)
+  const [currentBeat, setCurrentBeat] = useState(0)
   const audioContextRef = useRef<AudioContext | null>(null)
   const schedulerRef = useRef<number | null>(null)
   const nextNoteTimeRef = useRef(0)
@@ -38,7 +39,7 @@ export function MetronomePanel() {
     scheduleStep()
   }, [playing, bpm, accentEvery, subdivision])
 
-  function click(time: number, accent: boolean, subdivisionTick: boolean) {
+  function click(time: number, accent: boolean, subdivisionTick: boolean, beatInMeasure: number) {
     const context = audioContextRef.current ?? new AudioContext()
     audioContextRef.current = context
     const oscillator = context.createOscillator()
@@ -57,6 +58,7 @@ export function MetronomePanel() {
       window.setTimeout(() => {
         setIsAccentBeat(accent)
         setBeatCount((c) => c + 1)
+        setCurrentBeat(beatInMeasure)
       }, delay)
     }
   }
@@ -72,7 +74,8 @@ export function MetronomePanel() {
       const step = currentStepRef.current
       const accent = step % (accentEvery * subdivision) === 0
       const subdivisionTick = subdivision > 1 && step % subdivision !== 0
-      click(nextNoteTimeRef.current, accent, subdivisionTick)
+      const beatInMeasure = Math.floor(step / subdivision) % accentEvery
+      click(nextNoteTimeRef.current, accent, subdivisionTick, beatInMeasure)
       nextNoteTimeRef.current += stepDuration
       currentStepRef.current += 1
     }
@@ -86,17 +89,13 @@ export function MetronomePanel() {
       schedulerRef.current = null
     }
     currentStepRef.current = 0
+    setCurrentBeat(0)
     setPlaying(false)
   }
 
   function start() {
     stop()
-    const context = audioContextRef.current ?? new AudioContext()
-    audioContextRef.current = context
-    nextNoteTimeRef.current = context.currentTime + 0.05
-    currentStepRef.current = 0
     setPlaying(true)
-    scheduleStep()
   }
 
   function tap() {
@@ -132,6 +131,23 @@ export function MetronomePanel() {
         <button className="secondary-button tap-button" onClick={tap} title="Toque no ritmo para detectar o BPM">
           TAP
         </button>
+      </div>
+
+      <div className="metronome-beats">
+        {Array.from({ length: accentEvery }, (_, i) => (
+          <div
+            key={i}
+            className={`metro-beat-dot${
+              playing && currentBeat === i
+                ? i === 0
+                  ? ' metro-beat-dot-accent'
+                  : ' metro-beat-dot-active'
+                : ''
+            }`}
+          >
+            {i + 1}
+          </div>
+        ))}
       </div>
 
       <div

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { EditableNote } from '../types'
 import { clampMidi, labelToMidi, midiToLabel } from '../utils/music'
 
@@ -7,12 +8,17 @@ interface Props {
 }
 
 const DURATION_PRESETS = [0.25, 0.5, 1, 1.5, 2, 3, 4]
+const PAGE_SIZE = 100
 
 function updateNote(notes: EditableNote[], id: string, updater: (note: EditableNote) => EditableNote) {
   return notes.map((note) => (note.id === id ? updater(note) : note))
 }
 
 export function NoteEditor({ notes, onChange }: Props) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const visible = notes.slice(0, visibleCount)
+  const hasMore = visibleCount < notes.length
+
   return (
     <section className="panel">
       <div className="panel-header">
@@ -52,8 +58,10 @@ export function NoteEditor({ notes, onChange }: Props) {
           <span>Acoes</span>
         </div>
 
-        {notes.map((note) => (
-          <div className="note-row" key={note.id}>
+        {visible.map((note) => (
+          <div className="note-row" key={note.id}
+            style={{ contentVisibility: 'auto', containIntrinsicSize: '0 50px' } as React.CSSProperties}
+          >
             <input
               value={midiToLabel(note.midi)}
               onChange={(event) => {
@@ -118,6 +126,14 @@ export function NoteEditor({ notes, onChange }: Props) {
             </button>
           </div>
         ))}
+
+        {hasMore && (
+          <div style={{ textAlign: 'center', padding: '10px 0' }}>
+            <button className="ghost-button" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}>
+              Mostrar mais ({notes.length - visibleCount} restantes)
+            </button>
+          </div>
+        )}
       </div>
     </section>
   )

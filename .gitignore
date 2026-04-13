@@ -2,3 +2,6 @@ node_modules/
 dist/
 public/basic-pitch-model/
 tsconfig.app.tsbuildinfo
+pdf_debug/
+*.local
+.env*

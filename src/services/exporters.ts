@@ -1,4 +1,3 @@
-import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { Midi } from '@tonejs/midi'
 import type { ChordSymbol, ProjectData, ScorePart, TimeSignatureChange, TrackNote } from '../types'
@@ -501,44 +500,99 @@ export function exportMusicXml(project: ProjectData): void {
   )
 }
 
+async function svgElementToDataUrl(svg: SVGSVGElement, scale: number): Promise<{ url: string; width: number; height: number }> {
+  const vb = svg.viewBox.baseVal
+  const bbox = svg.getBoundingClientRect()
+  const srcWidth  = vb.width  || bbox.width  || 960
+  const srcHeight = vb.height || bbox.height || 400
+
+  const serializer = new XMLSerializer()
+  const svgStr = serializer.serializeToString(svg)
+  const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' })
+  const url  = URL.createObjectURL(blob)
+
+  const canvas = document.createElement('canvas')
+  canvas.width  = Math.ceil(srcWidth  * scale)
+  canvas.height = Math.ceil(srcHeight * scale)
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  await new Promise<void>((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(url)
+      resolve()
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG load failed')) }
+    img.src = url
+  })
+
+  return { url: canvas.toDataURL('image/png'), width: srcWidth, height: srcHeight }
+}
+
+export async function exportScoreSvg(scoreElement: HTMLElement, filename: string): Promise<void> {
+  const svgs = Array.from(scoreElement.querySelectorAll<SVGSVGElement>('svg'))
+  if (!svgs.length) return
+
+  const serializer = new XMLSerializer()
+  const parts = svgs.map(s => serializer.serializeToString(s)).join('\n')
+  downloadBlob(filename.replace(/\.pdf$/i, '.svg'), new Blob([parts], { type: 'image/svg+xml' }))
+}
+
 export async function exportScorePdf(scoreElement: HTMLElement, filename: string): Promise<void> {
-  const previousWidth = scoreElement.style.width
-  const previousOverflow = scoreElement.style.overflow
-  scoreElement.style.width = '960px'
-  scoreElement.style.overflow = 'visible'
+  const svgs = Array.from(scoreElement.querySelectorAll<SVGSVGElement>('svg'))
 
-  const canvas = await html2canvas(scoreElement, {
-    backgroundColor: '#ffffff',
-    scale: 2,
-    useCORS: true,
-  })
-
-  const image = canvas.toDataURL('image/png')
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'pt',
-    format: 'a4',
-  })
-
-  const pageWidth = pdf.internal.pageSize.getWidth()
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
+  const pageWidth  = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
-  const renderWidth = pageWidth - 36
-  const renderHeight = (canvas.height * renderWidth) / canvas.width
-  let remainingHeight = renderHeight
-  let positionY = 18
+  const margin = 18
+  const printWidth = pageWidth - margin * 2
 
-  pdf.addImage(image, 'PNG', 18, positionY, renderWidth, renderHeight)
-  remainingHeight -= pageHeight - 36
+  if (svgs.length > 0) {
+    // SVG path: render each OSMD SVG at 4× scale for sharp output
+    const scale = 4
+    let cursorY = margin
 
-  while (remainingHeight > 0) {
-    positionY = remainingHeight - renderHeight + 18
-    pdf.addPage()
-    pdf.addImage(image, 'PNG', 18, positionY, renderWidth, renderHeight)
-    remainingHeight -= pageHeight - 36
+    for (let i = 0; i < svgs.length; i++) {
+      const { url, width, height } = await svgElementToDataUrl(svgs[i], scale)
+      const renderHeight = (height * printWidth) / width
+
+      if (i > 0 && cursorY + renderHeight > pageHeight - margin) {
+        pdf.addPage()
+        cursorY = margin
+      }
+
+      pdf.addImage(url, 'PNG', margin, cursorY, printWidth, renderHeight)
+      cursorY += renderHeight + 8
+    }
+  } else {
+    // Fallback: plain canvas capture for non-SVG content
+    const { default: html2canvas } = await import('html2canvas')
+    const prev = { width: scoreElement.style.width, overflow: scoreElement.style.overflow }
+    scoreElement.style.width = '960px'
+    scoreElement.style.overflow = 'visible'
+
+    const canvas = await html2canvas(scoreElement, { backgroundColor: '#ffffff', scale: 2, useCORS: true })
+    const image = canvas.toDataURL('image/png')
+    const renderHeight = (canvas.height * printWidth) / canvas.width
+    let remaining = renderHeight
+    let posY = margin
+
+    pdf.addImage(image, 'PNG', margin, posY, printWidth, renderHeight)
+    remaining -= pageHeight - margin * 2
+    while (remaining > 0) {
+      posY = remaining - renderHeight + margin
+      pdf.addPage()
+      pdf.addImage(image, 'PNG', margin, posY, printWidth, renderHeight)
+      remaining -= pageHeight - margin * 2
+    }
+
+    scoreElement.style.width = prev.width
+    scoreElement.style.overflow = prev.overflow
   }
 
-  scoreElement.style.width = previousWidth
-  scoreElement.style.overflow = previousOverflow
   pdf.save(filename)
 }
 
