@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocalStorage } from '../utils/useLocalStorage'
 
 const ROOTS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
 
@@ -62,8 +63,8 @@ function buildChords(rootPc: number, mode: 'major' | 'minor') {
 }
 
 export function ChordProgressions() {
-  const [root, setRoot] = useState('C')
-  const [mode, setMode] = useState<'major' | 'minor'>('major')
+  const [root, setRoot] = useLocalStorage('prog-root', 'C')
+  const [mode, setMode] = useLocalStorage<'major' | 'minor'>('prog-mode', 'major')
   const [selected, setSelected] = useState(0)
 
   const rootPc = KEY_PC[root]

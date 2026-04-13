@@ -13,6 +13,7 @@ import { ScaleFinder } from './components/ScaleFinder'
 import { ScorePreview } from './components/ScorePreview'
 import { TunerPanel } from './components/TunerPanel'
 import { assetUrl } from './utils/assets'
+import { useLocalStorage } from './utils/useLocalStorage'
 import {
   exportProjectMidi,
   exportMusicXml,
@@ -28,6 +29,15 @@ import {
 } from './services/transcription'
 import type { EditableNote, ProjectData, ScoreMeta } from './types'
 
+type Tab = 'ferramentas' | 'acordes' | 'escalas' | 'partitura'
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'ferramentas', label: 'Ferramentas' },
+  { id: 'acordes',     label: 'Acordes' },
+  { id: 'escalas',     label: 'Escalas' },
+  { id: 'partitura',   label: 'Partitura' },
+]
+
 const EMPTY_META: ScoreMeta = {
   title: 'Nova Partitura',
   composer: 'SR Music Studio',
@@ -40,6 +50,7 @@ function sortNotes(notes: EditableNote[]): EditableNote[] {
 }
 
 export default function App() {
+  const [activeTab, setActiveTab] = useLocalStorage<Tab>('app-active-tab', 'ferramentas')
   const [project, setProject] = useState<ProjectData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -89,11 +100,7 @@ export default function App() {
           sourceType: 'midi',
         }
       }
-
-      return {
-        ...current,
-        meta: nextMeta,
-      }
+      return { ...current, meta: nextMeta }
     })
   }
 
@@ -106,7 +113,6 @@ export default function App() {
         current.ppq ?? 480,
         current.renderMode,
       )
-
       return {
         ...current,
         selectedTrackIds: trackIds,
@@ -120,12 +126,8 @@ export default function App() {
     setProject((current) => {
       if (!current) return current
       if (current.sourceType !== 'midi' || !current.midiTracks) {
-        return {
-          ...current,
-          renderMode,
-        }
+        return { ...current, renderMode }
       }
-
       const selectedTrackIds = current.selectedTrackIds ?? current.midiTracks.map((track) => track.id)
       const scoreParts = buildScorePartsFromSelectedTracks(
         current.midiTracks,
@@ -133,7 +135,6 @@ export default function App() {
         current.ppq ?? 480,
         renderMode,
       )
-
       return {
         ...current,
         renderMode,
@@ -203,109 +204,141 @@ export default function App() {
         </div>
       </section>
 
-      <section className="utility-grid">
-        <TunerPanel />
-        <MetronomePanel />
-        <section className="panel utility-panel utility-feature">
-          <p className="eyebrow">Como funciona</p>
-          <h3>Três passos para a partitura</h3>
-          <div className="feature-grid">
-            <article>
-              <span>01</span>
-              <h4>Importe</h4>
-              <p>MIDI, WAV, MP3, OGG ou FLAC.</p>
-            </article>
-            <article>
-              <span>02</span>
-              <h4>Refine</h4>
-              <p>Ajuste notas, compasso e layout.</p>
-            </article>
-            <article>
-              <span>03</span>
-              <h4>Exporte</h4>
-              <p>PDF, MusicXML ou MIDI.</p>
-            </article>
-          </div>
-        </section>
-      </section>
+      <nav className="app-tabs" role="tablist" aria-label="Seções do app">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={`app-tab ${activeTab === tab.id ? 'app-tab-active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+            {tab.id === 'partitura' && project && (
+              <span className="app-tab-dot" aria-hidden="true" />
+            )}
+          </button>
+        ))}
+      </nav>
 
-      <section className="dictionary-wrap">
-        <ChordDictionary />
-      </section>
-
-      <section className="tools-grid">
-        <CircleOfFifths />
-        <ScaleFinder />
-        <ChordTransposer />
-      </section>
-
-      <section className="progressions-grid">
-        <ChordProgressions />
-        <CavacoProgressions />
-      </section>
-
-      <FileDropzone disabled={loading} onFileSelected={handleFile} />
-
-      {error && <section className="error-banner">{error}</section>}
-
-      {project && (
-        <>
-          <section className="toolbar">
-            <button className="secondary-button" onClick={() => project && exportProjectMidi(project)}>
-              Exportar MIDI
-            </button>
-            <button className="secondary-button" onClick={() => project && exportMusicXml(project)}>
-              Exportar MusicXML
-            </button>
-            <button
-              className="secondary-button"
-              onClick={() =>
-                scoreRef.current && exportScorePdf(scoreRef.current, `${meta.title || 'partitura'}.pdf`)
-              }
-            >
-              Exportar PDF
-            </button>
-            <button className="secondary-button" onClick={() => project && exportSessionJson(project)}>
-              Exportar projeto JSON
-            </button>
+      {activeTab === 'ferramentas' && (
+        <div className="tab-content">
+          <section className="utility-grid">
+            <TunerPanel />
+            <MetronomePanel />
+            <section className="panel utility-panel utility-feature">
+              <p className="eyebrow">Como funciona</p>
+              <h3>Três passos para a partitura</h3>
+              <div className="feature-grid">
+                <article>
+                  <span>01</span>
+                  <h4>Importe</h4>
+                  <p>MIDI, WAV, MP3, OGG ou FLAC.</p>
+                </article>
+                <article>
+                  <span>02</span>
+                  <h4>Refine</h4>
+                  <p>Ajuste notas, compasso e layout.</p>
+                </article>
+                <article>
+                  <span>03</span>
+                  <h4>Exporte</h4>
+                  <p>PDF, MusicXML ou MIDI.</p>
+                </article>
+              </div>
+            </section>
           </section>
+        </div>
+      )}
 
-          <section className="workspace-grid">
-            <div className="left-column">
-              <ProjectControls
-                meta={meta}
-                sourceName={project.sourceName}
-                sourceType={project.sourceType}
-                renderMode={project.renderMode}
-                measuresPerSystem={project.measuresPerSystem}
-                loading={loading}
-                onMetaChange={updateMeta}
-                onRenderModeChange={updateRenderMode}
-                onMeasuresPerSystemChange={updateMeasuresPerSystem}
-              />
-              {project.sourceType === 'midi' && project.midiTracks && project.selectedTrackIds && (
-                <MidiTrackPicker
-                  tracks={project.midiTracks}
-                  selectedTrackIds={project.selectedTrackIds}
-                  onSelectionChange={updateSelectedMidiTracks}
+      {activeTab === 'acordes' && (
+        <div className="tab-content">
+          <section className="dictionary-wrap">
+            <ChordDictionary />
+          </section>
+          <section className="progressions-grid">
+            <ChordProgressions />
+            <CavacoProgressions />
+          </section>
+        </div>
+      )}
+
+      {activeTab === 'escalas' && (
+        <div className="tab-content">
+          <section className="tools-grid">
+            <CircleOfFifths />
+            <ScaleFinder />
+            <ChordTransposer />
+          </section>
+        </div>
+      )}
+
+      {activeTab === 'partitura' && (
+        <div className="tab-content">
+          <FileDropzone disabled={loading} onFileSelected={handleFile} />
+
+          {error && <section className="error-banner">{error}</section>}
+
+          {project && (
+            <>
+              <section className="toolbar">
+                <button className="secondary-button" onClick={() => project && exportProjectMidi(project)}>
+                  Exportar MIDI
+                </button>
+                <button className="secondary-button" onClick={() => project && exportMusicXml(project)}>
+                  Exportar MusicXML
+                </button>
+                <button
+                  className="secondary-button"
+                  onClick={() =>
+                    scoreRef.current && exportScorePdf(scoreRef.current, `${meta.title || 'partitura'}.pdf`)
+                  }
+                >
+                  Exportar PDF
+                </button>
+                <button className="secondary-button" onClick={() => project && exportSessionJson(project)}>
+                  Exportar projeto JSON
+                </button>
+              </section>
+
+              <section className="workspace-grid">
+                <div className="left-column">
+                  <ProjectControls
+                    meta={meta}
+                    sourceName={project.sourceName}
+                    sourceType={project.sourceType}
+                    renderMode={project.renderMode}
+                    measuresPerSystem={project.measuresPerSystem}
+                    loading={loading}
+                    onMetaChange={updateMeta}
+                    onRenderModeChange={updateRenderMode}
+                    onMeasuresPerSystemChange={updateMeasuresPerSystem}
+                  />
+                  {project.sourceType === 'midi' && project.midiTracks && project.selectedTrackIds && (
+                    <MidiTrackPicker
+                      tracks={project.midiTracks}
+                      selectedTrackIds={project.selectedTrackIds}
+                      onSelectionChange={updateSelectedMidiTracks}
+                    />
+                  )}
+                </div>
+
+                <div className="right-column">
+                  <NoteEditor notes={notes} onChange={updateNotes} />
+                </div>
+              </section>
+
+              <section className="preview-wrap">
+                <ScorePreview
+                  xml={musicXml}
+                  title={meta.title}
+                  measuresPerSystem={project.measuresPerSystem}
+                  scoreRef={scoreRef}
                 />
-              )}
-            </div>
-
-            <div className="right-column">
-              <NoteEditor notes={notes} onChange={updateNotes} />
-            </div>
-          </section>
-
-          <section className="preview-wrap">
-            <ScorePreview
-              xml={musicXml}
-              title={meta.title}
-              measuresPerSystem={project.measuresPerSystem}
-              scoreRef={scoreRef}
-            />
-          </section>
-        </>
+              </section>
+            </>
+          )}
+        </div>
       )}
     </main>
   )

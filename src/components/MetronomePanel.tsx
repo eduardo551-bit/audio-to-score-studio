@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLocalStorage } from '../utils/useLocalStorage'
 
 export function MetronomePanel() {
-  const [bpm, setBpm] = useState(78)
+  const [bpm, setBpm] = useLocalStorage('metro-bpm', 78)
   const [playing, setPlaying] = useState(false)
-  const [accentEvery, setAccentEvery] = useState(4)
-  const [subdivision, setSubdivision] = useState(1)
+  const [accentEvery, setAccentEvery] = useLocalStorage<number>('metro-accent', 4)
+  const [subdivision, setSubdivision] = useLocalStorage<number>('metro-subdivision', 1)
+  const [beatCount, setBeatCount] = useState(0)
+  const [isAccentBeat, setIsAccentBeat] = useState(false)
   const audioContextRef = useRef<AudioContext | null>(null)
   const schedulerRef = useRef<number | null>(null)
   const nextNoteTimeRef = useRef(0)
   const currentStepRef = useRef(0)
+  const tapTimesRef = useRef<number[]>([])
   const lookaheadMs = 25
   const scheduleAheadTime = 0.12
 
@@ -47,6 +51,14 @@ export function MetronomePanel() {
     gain.connect(context.destination)
     oscillator.start(time)
     oscillator.stop(time + 0.05)
+
+    if (!subdivisionTick) {
+      const delay = Math.max(0, (time - context.currentTime) * 1000)
+      window.setTimeout(() => {
+        setIsAccentBeat(accent)
+        setBeatCount((c) => c + 1)
+      }, delay)
+    }
   }
 
   function scheduleStep() {
@@ -87,11 +99,27 @@ export function MetronomePanel() {
     scheduleStep()
   }
 
+  function tap() {
+    const now = performance.now()
+    if (tapTimesRef.current.length > 0 && now - tapTimesRef.current[tapTimesRef.current.length - 1] > 2000) {
+      tapTimesRef.current = []
+    }
+    tapTimesRef.current = [...tapTimesRef.current, now].slice(-8)
+    if (tapTimesRef.current.length >= 2) {
+      const intervals: number[] = []
+      for (let i = 1; i < tapTimesRef.current.length; i++) {
+        intervals.push(tapTimesRef.current[i] - tapTimesRef.current[i - 1])
+      }
+      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length
+      setBpm(Math.max(40, Math.min(220, Math.round(60000 / avg))))
+    }
+  }
+
   return (
     <section className="panel utility-panel">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Metronomo</p>
+          <p className="eyebrow">Metrônomo</p>
           <h3>SR Pulse</h3>
         </div>
         <button className={playing ? 'ghost-button' : 'secondary-button'} onClick={playing ? stop : start}>
@@ -99,7 +127,18 @@ export function MetronomePanel() {
         </button>
       </div>
 
-      <div className="metronome-bpm">{bpm} BPM</div>
+      <div className="metronome-bpm-row">
+        <div className="metronome-bpm">{bpm} BPM</div>
+        <button className="secondary-button tap-button" onClick={tap} title="Toque no ritmo para detectar o BPM">
+          TAP
+        </button>
+      </div>
+
+      <div
+        key={beatCount}
+        className={`metronome-pulse${playing ? (isAccentBeat ? ' pulse-accent' : ' pulse-beat') : ''}`}
+      />
+
       <input
         type="range"
         min={40}
@@ -117,9 +156,9 @@ export function MetronomePanel() {
         </select>
       </label>
       <label className="utility-label">
-        <span>Subdivisao</span>
+        <span>Subdivisão</span>
         <select value={subdivision} onChange={(event) => setSubdivision(Number(event.target.value))}>
-          <option value={1}>Sem subdivisao</option>
+          <option value={1}>Sem subdivisão</option>
           <option value={2}>Colcheias</option>
           <option value={4}>Semicolcheias</option>
         </select>

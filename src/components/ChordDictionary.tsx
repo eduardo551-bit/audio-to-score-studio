@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import Chord from '@techies23/react-chords'
 import guitarDb from '@tombatossals/chords-db/lib/guitar.json'
 import { CavacoDiagram } from './CavacoDiagram'
+import { CavacoDictionary } from './CavacoDictionary'
+import { useLocalStorage } from '../utils/useLocalStorage'
 
 // ── Guitar DB types ──────────────────────────────────────────────────────────
 type GuitarDb = {
@@ -78,6 +80,25 @@ function parseQuery(query: string): { key: string; suffix: string } | null {
     if (pat.test(rem)) return { key, suffix: suf }
   }
   return { key, suffix: rem || 'major' }
+}
+
+// ── Utilitário: exportar SVG do card ────────────────────────────────────────
+
+function downloadCardSvg(cardEl: HTMLElement | null, filename: string) {
+  if (!cardEl) return
+  const svg = cardEl.querySelector('svg')
+  if (!svg) return
+  const cloned = svg.cloneNode(true) as SVGElement
+  if (!cloned.getAttribute('xmlns')) cloned.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  const serializer = new XMLSerializer()
+  const svgStr = '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(cloned)
+  const blob = new Blob([svgStr], { type: 'image/svg+xml' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${filename}.svg`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // ── Cavaquinho manual builder ─────────────────────────────────────────────────
@@ -202,12 +223,13 @@ function BuilderSvg({
 
 // ── Componente principal ─────────────────────────────────────────────────────
 export function ChordDictionary() {
-  const [instrument, setInstrument] = useState<'violao' | 'cavaco'>('violao')
+  const [instrument, setInstrument] = useLocalStorage<'violao' | 'cavaco'>('dict-instrument', 'violao')
+  const [cavacoView, setCavacoView] = useLocalStorage<'dicionario' | 'builder'>('dict-cavaco-view', 'dicionario')
 
   // ── Violão state ──
   const [query, setQuery] = useState('G')
-  const [selectedKey, setSelectedKey] = useState('G')
-  const [selectedSuffix, setSelectedSuffix] = useState('major')
+  const [selectedKey, setSelectedKey] = useLocalStorage('dict-guitar-key', 'G')
+  const [selectedSuffix, setSelectedSuffix] = useLocalStorage('dict-guitar-suffix', 'major')
 
   const parsed = useMemo(() => parseQuery(query), [query])
 
@@ -287,6 +309,7 @@ export function ChordDictionary() {
     setBuilderFrets([...chord.frets] as [number, number, number, number])
     setBuilderBase(chord.baseFret)
     setBuilderName(chord.name)
+    setCavacoView('builder')
   }
 
   return (
@@ -352,6 +375,17 @@ export function ChordDictionary() {
                     <strong>Posição {i + 1}</strong>
                     <span>Casa {pos.baseFret}</span>
                   </div>
+                  <div className="chord-card-actions">
+                    <button
+                      className="chord-action-btn"
+                      onClick={e => {
+                        const card = (e.target as HTMLElement).closest<HTMLElement>('.chord-card')
+                        downloadCardSvg(card, `${guitarChordLabel}-pos-${i + 1}`)
+                      }}
+                    >
+                      Baixar SVG
+                    </button>
+                  </div>
                 </article>
               ))
             ) : (
@@ -366,90 +400,123 @@ export function ChordDictionary() {
 
       {instrument === 'cavaco' && (
         <>
-          <div className="cavaco-builder">
-            <div className="cavaco-builder-left">
-              <BuilderSvg
-                frets={builderFrets}
-                baseFret={builderBase}
-                onFret={toggleFret}
-                onHead={cycleHead}
-              />
-              <p className="cavaco-builder-hint">
-                Clique nas casas para colocar / remover notas.<br />
-                Clique acima da corda para alternar aberta (o) / muda (x).
-              </p>
-            </div>
-
-            <div className="cavaco-builder-right">
-              <label className="scale-label">
-                <span>Casa base</span>
-                <select value={builderBase} onChange={e => setBuilderBase(Number(e.target.value))}>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
-                    <option key={n} value={n}>{n}ª casa</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="scale-label">
-                <span>Nome do acorde</span>
-                <input
-                  value={builderName}
-                  onChange={e => setBuilderName(e.target.value)}
-                  placeholder="Ex.: G, Dm7, C#7..."
-                  onKeyDown={e => e.key === 'Enter' && saveChord()}
-                />
-              </label>
-
-              <div className="cavaco-builder-actions">
-                <button
-                  className="primary-button"
-                  onClick={saveChord}
-                  disabled={!builderName.trim()}
-                >
-                  Salvar acorde
-                </button>
-                <button
-                  className="secondary-button"
-                  onClick={() => { setBuilderFrets([0, 0, 0, 0]); setBuilderBase(1); setBuilderName('') }}
-                >
-                  Limpar
-                </button>
-              </div>
-            </div>
+          <div className="cavaco-view-toggle">
+            <button
+              className={`toggle-chip ${cavacoView === 'dicionario' ? 'toggle-chip-active' : ''}`}
+              onClick={() => setCavacoView('dicionario')}
+            >Dicionário</button>
+            <button
+              className={`toggle-chip ${cavacoView === 'builder' ? 'toggle-chip-active' : ''}`}
+              onClick={() => setCavacoView('builder')}
+            >Builder personalizado</button>
           </div>
 
-          {savedChords.length > 0 && (
-            <div className="cavaco-saved-section">
-              <p className="eyebrow" style={{ marginBottom: 12 }}>
-                Acordes salvos ({savedChords.length})
-              </p>
-              <div className="chord-grid">
-                {savedChords.map(chord => (
-                  <article key={chord.id} className="chord-card cavaco-diagram-card">
-                    <CavacoDiagram
-                      position={makePosition(chord.frets, chord.baseFret)}
-                      chordName={chord.name}
-                    />
-                    <div className="chord-card-meta">
-                      <strong>{chord.name}</strong>
-                      <span>Casa {chord.baseFret}</span>
-                    </div>
-                    <div className="chord-card-actions">
-                      <button className="chord-action-btn" onClick={() => loadIntoBuilder(chord)}>
-                        Editar
-                      </button>
-                      <button className="chord-action-btn chord-action-delete" onClick={() => removeChord(chord.id)}>
-                        Remover
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
+          {cavacoView === 'dicionario' && (
+            <CavacoDictionary onEditChord={(pos, name) => {
+              setBuilderFrets([...pos.frets] as [number, number, number, number])
+              setBuilderBase(pos.baseFret)
+              setBuilderName(name)
+              setCavacoView('builder')
+            }} />
           )}
 
-          {savedChords.length === 0 && (
-            <p className="cavaco-empty-msg">Nenhum acorde salvo ainda. Crie o primeiro acima.</p>
+          {cavacoView === 'builder' && (
+            <>
+              <div className="cavaco-builder">
+                <div className="cavaco-builder-left">
+                  <BuilderSvg
+                    frets={builderFrets}
+                    baseFret={builderBase}
+                    onFret={toggleFret}
+                    onHead={cycleHead}
+                  />
+                  <p className="cavaco-builder-hint">
+                    Clique nas casas para colocar / remover notas.<br />
+                    Clique acima da corda para alternar aberta (o) / muda (x).
+                  </p>
+                </div>
+
+                <div className="cavaco-builder-right">
+                  <label className="scale-label">
+                    <span>Casa base</span>
+                    <select value={builderBase} onChange={e => setBuilderBase(Number(e.target.value))}>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                        <option key={n} value={n}>{n}ª casa</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="scale-label">
+                    <span>Nome do acorde</span>
+                    <input
+                      value={builderName}
+                      onChange={e => setBuilderName(e.target.value)}
+                      placeholder="Ex.: G, Dm7, C#7..."
+                      onKeyDown={e => e.key === 'Enter' && saveChord()}
+                    />
+                  </label>
+
+                  <div className="cavaco-builder-actions">
+                    <button
+                      className="primary-button"
+                      onClick={saveChord}
+                      disabled={!builderName.trim()}
+                    >
+                      Salvar acorde
+                    </button>
+                    <button
+                      className="secondary-button"
+                      onClick={() => { setBuilderFrets([0, 0, 0, 0]); setBuilderBase(1); setBuilderName('') }}
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {savedChords.length > 0 && (
+                <div className="cavaco-saved-section">
+                  <p className="eyebrow" style={{ marginBottom: 12 }}>
+                    Acordes salvos ({savedChords.length})
+                  </p>
+                  <div className="chord-grid">
+                    {savedChords.map(chord => (
+                      <article key={chord.id} className="chord-card cavaco-diagram-card">
+                        <CavacoDiagram
+                          position={makePosition(chord.frets, chord.baseFret)}
+                          chordName={chord.name}
+                        />
+                        <div className="chord-card-meta">
+                          <strong>{chord.name}</strong>
+                          <span>Casa {chord.baseFret}</span>
+                        </div>
+                        <div className="chord-card-actions">
+                          <button className="chord-action-btn" onClick={() => loadIntoBuilder(chord)}>
+                            Editar
+                          </button>
+                          <button
+                            className="chord-action-btn"
+                            onClick={e => {
+                              const card = (e.target as HTMLElement).closest<HTMLElement>('.chord-card')
+                              downloadCardSvg(card, chord.name)
+                            }}
+                          >
+                            SVG
+                          </button>
+                          <button className="chord-action-btn chord-action-delete" onClick={() => removeChord(chord.id)}>
+                            Remover
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {savedChords.length === 0 && (
+                <p className="cavaco-empty-msg">Nenhum acorde salvo ainda. Crie o primeiro acima.</p>
+              )}
+            </>
           )}
         </>
       )}

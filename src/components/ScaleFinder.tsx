@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
+import { useLocalStorage } from '../utils/useLocalStorage'
 
 const ROOTS_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const ROOTS_FLAT  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
@@ -187,9 +188,9 @@ function Fretboard({ openPcs, stringLabels, scalePcs, rootPc, useFlat }: Fretboa
 }
 
 export function ScaleFinder() {
-  const [root, setRoot] = useState('C')
-  const [scaleName, setScaleName] = useState('Maior')
-  const [instrument, setInstrument] = useState<'violao' | 'cavaco'>('violao')
+  const [root, setRoot] = useLocalStorage('scale-root', 'C')
+  const [scaleName, setScaleName] = useLocalStorage('scale-name', 'Maior')
+  const [instrument, setInstrument] = useLocalStorage<'violao' | 'cavaco'>('scale-instrument', 'violao')
 
   const rootPc = ROOTS_SELECT.indexOf(root)
   const intervals = SCALES[scaleName]

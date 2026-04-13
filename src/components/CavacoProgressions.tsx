@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocalStorage } from '../utils/useLocalStorage'
 
 const NOTE_SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
 const NOTE_FLAT  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B']
@@ -152,7 +153,7 @@ const PROGRESSIONS: Progression[] = [
 ]
 
 export function CavacoProgressions() {
-  const [selectedKey, setSelectedKey] = useState('C')
+  const [selectedKey, setSelectedKey] = useLocalStorage('cavaco-prog-key', 'C')
   const [selectedProg, setSelectedProg] = useState(0)
 
   const prog = PROGRESSIONS[selectedProg]

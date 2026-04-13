@@ -6,7 +6,9 @@ import {
   FRIENDLY_SUFFIXES,
   getCavacoChord,
   getCavacoSuffixesForKey,
+  type CavacoPosition,
 } from '../data/cavachoChords'
+import { useLocalStorage } from '../utils/useLocalStorage'
 
 function normalizeQuery(query: string): { key: string; suffix: string } | null {
   const clean = query.trim()
@@ -37,10 +39,31 @@ function normalizeQuery(query: string): { key: string; suffix: string } | null {
   return { key, suffix: remainder || 'major' }
 }
 
-export function CavacoDictionary() {
+function downloadCardSvg(cardEl: HTMLElement | null, filename: string) {
+  if (!cardEl) return
+  const svg = cardEl.querySelector('svg')
+  if (!svg) return
+  const cloned = svg.cloneNode(true) as SVGElement
+  if (!cloned.getAttribute('xmlns')) cloned.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  const serializer = new XMLSerializer()
+  const svgStr = '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(cloned)
+  const blob = new Blob([svgStr], { type: 'image/svg+xml' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${filename}.svg`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+interface CavacoDictionaryProps {
+  onEditChord?: (pos: CavacoPosition, name: string) => void
+}
+
+export function CavacoDictionary({ onEditChord }: CavacoDictionaryProps = {}) {
   const [query, setQuery] = useState('G')
-  const [selectedKey, setSelectedKey] = useState('G')
-  const [selectedSuffix, setSelectedSuffix] = useState('major')
+  const [selectedKey, setSelectedKey] = useLocalStorage('cavacodict-key', 'G')
+  const [selectedSuffix, setSelectedSuffix] = useLocalStorage('cavacodict-suffix', 'major')
 
   const parsed = useMemo(() => normalizeQuery(query), [query])
 
@@ -110,6 +133,22 @@ export function CavacoDictionary() {
               <div className="chord-card-meta">
                 <strong>Posição {i + 1}</strong>
                 <span>Casa {pos.baseFret}</span>
+              </div>
+              <div className="chord-card-actions">
+                {onEditChord && (
+                  <button className="chord-action-btn" onClick={() => onEditChord(pos, `${activeKey}`)}>
+                    Editar
+                  </button>
+                )}
+                <button
+                  className="chord-action-btn"
+                  onClick={e => {
+                    const card = (e.target as HTMLElement).closest<HTMLElement>('.chord-card')
+                    downloadCardSvg(card, `${chordLabel}-pos-${i + 1}`)
+                  }}
+                >
+                  SVG
+                </button>
               </div>
             </article>
           ))

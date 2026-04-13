@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocalStorage } from '../utils/useLocalStorage'
 
 const SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const FLAT  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
@@ -20,13 +21,13 @@ function transposeRoot(root: string, semitones: number): string {
 
 function transposeText(text: string, semitones: number): string {
   if (semitones === 0) return text
-  return text.replace(/[A-G][#b]?/g, (match, offset) => {
-    // Skip if it's part of a word that came after a letter (e.g. "Em" → only transpose the "E")
-    // Actually we want to transpose any chord root token
-    const before = text[offset - 1]
-    if (before && /[A-Za-z]/.test(before)) return match  // skip if preceded by a letter
-    return transposeRoot(match, semitones)
-  })
+  // Faz match em tokens de acorde: [A-G][#b]? não precedidos por letra,
+  // seguidos de: fim, espaço, número, símbolo, ou sufixo de acorde válido.
+  // Evita transpor letras no meio de palavras (ex: "Empire", "Embora").
+  return text.replace(
+    /(?<![A-Za-z])([A-G][#b]?)(?=$|[^A-Za-z]|m(?:aj7?|in|7|6|9)?(?=[^a-z]|$)|dim|sus[24]?|aug)/g,
+    (match) => transposeRoot(match, semitones),
+  )
 }
 
 const EXAMPLES = [
@@ -37,7 +38,7 @@ const EXAMPLES = [
 ]
 
 export function ChordTransposer() {
-  const [input, setInput] = useState(EXAMPLES[0])
+  const [input, setInput] = useLocalStorage('transposer-input', EXAMPLES[0])
   const [semitones, setSemitones] = useState(0)
 
   const output = transposeText(input, semitones)
