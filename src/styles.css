@@ -3915,6 +3915,276 @@ select:focus {
   font: inherit;
 }
 
+.songbook-complete-sheet,
+.songbook-linked-scores {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(130, 101, 52, 0.16);
+  background: rgba(255, 251, 244, 0.9);
+}
+
+.songbook-complete-sheet-head,
+.songbook-linked-scores-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.songbook-complete-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.songbook-complete-card {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(82, 63, 27, 0.12);
+  background: linear-gradient(180deg, rgba(255, 252, 244, 0.98), rgba(247, 240, 226, 0.98));
+  display: grid;
+  gap: 6px;
+}
+
+.songbook-complete-card small {
+  color: #7a684f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+}
+
+.songbook-complete-card strong {
+  color: #2e241a;
+}
+
+.songbook-complete-card span,
+.songbook-complete-card p {
+  color: #5f513d;
+  margin: 0;
+}
+
+.songbook-linked-scores {
+  display: grid;
+  gap: 14px;
+}
+
+.songbook-score-linker {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(82, 63, 27, 0.12);
+  background: rgba(255, 252, 244, 0.95);
+}
+
+.songbook-score-linker label {
+  display: grid;
+  gap: 6px;
+}
+
+.songbook-score-linker span {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8b5e1a;
+}
+
+.songbook-score-linker select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(82, 63, 27, 0.14);
+  background: rgba(255, 252, 244, 0.95);
+  color: #30271d;
+}
+
+.songbook-score-linker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.songbook-link-review {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(130, 101, 52, 0.16);
+  background: rgba(255, 251, 244, 0.9);
+  display: grid;
+  gap: 12px;
+}
+
+.songbook-link-review-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: end;
+}
+
+.songbook-link-review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
+.songbook-link-review-head label {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.songbook-link-review-head span {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8b5e1a;
+}
+
+.songbook-link-review-head select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(82, 63, 27, 0.14);
+  background: rgba(255, 252, 244, 0.95);
+  color: #30271d;
+}
+
+.songbook-link-review-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.songbook-link-review-stats span {
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 252, 244, 0.95);
+  border: 1px solid rgba(82, 63, 27, 0.12);
+  color: #5f513d;
+  font-size: 0.82rem;
+}
+
+.songbook-link-review-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.songbook-link-review-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(82, 63, 27, 0.12);
+  background: rgba(252, 248, 237, 0.88);
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.songbook-link-review-main {
+  text-align: left;
+  border: none;
+  background: transparent;
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+  padding: 0;
+  flex: 1;
+}
+
+.songbook-link-review-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(82, 63, 27, 0.1);
+}
+
+.songbook-link-review-item strong {
+  color: #2e241a;
+}
+
+.songbook-link-review-item span,
+.songbook-link-review-item small {
+  color: #5f513d;
+}
+
+.songbook-link-review-item-manual {
+  border-left: 4px solid #c47d1c;
+}
+
+.songbook-link-review-item-automatico {
+  border-left: 4px solid #5f8ba5;
+}
+
+.songbook-link-review-item-sem-vinculo {
+  border-left: 4px solid #a24c46;
+}
+
+.songbook-linked-score-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(82, 63, 27, 0.12);
+  background: rgba(252, 248, 237, 0.88);
+}
+
+.songbook-linked-score-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.songbook-linked-score-meta strong {
+  color: #2e241a;
+  display: block;
+}
+
+.songbook-linked-score-meta span {
+  color: #5f513d;
+}
+
+.songbook-linked-score-pages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.songbook-linked-score-page {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(82, 63, 27, 0.12);
+  background: rgba(255, 252, 244, 0.95);
+  text-decoration: none;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.songbook-linked-score-page:hover {
+  transform: translateY(-2px);
+  border-color: rgba(139, 94, 26, 0.24);
+  box-shadow: 0 12px 24px rgba(82, 63, 27, 0.1);
+}
+
+.songbook-linked-score-page img {
+  width: 100%;
+  border-radius: 12px;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  background: #efe4d1;
+}
+
+.songbook-linked-score-page span {
+  color: #5f513d;
+  font-size: 0.82rem;
+}
+
 .songbook-editor-actions,
 .chord-inspector-copy {
   display: grid;
@@ -4006,6 +4276,20 @@ select:focus {
     grid-template-columns: 1fr 1fr;
   }
 
+  .songbook-link-review-head {
+    display: grid;
+  }
+
+  .songbook-link-review-controls,
+  .songbook-link-review-item {
+    display: grid;
+  }
+
+  .songbook-complete-grid,
+  .songbook-linked-score-pages {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .harmony-dna-filters {
     grid-template-columns: 1fr 1fr;
   }
@@ -4048,6 +4332,9 @@ select:focus {
   .harmony-dna-filters,
   .song-dna-grid,
   .songbook-field-grid,
+  .songbook-complete-grid,
+  .songbook-linked-score-pages,
+  .songbook-link-review-items,
   .harmony-summary-grid,
   .stage-toolbar-wrap,
   .songbook-toolbar-wrap,
@@ -4091,6 +4378,12 @@ select:focus {
 
   .harmony-map-label-bottom {
     left: 14px;
+  }
+
+  .songbook-linked-score-meta,
+  .songbook-complete-sheet-head,
+  .songbook-linked-scores-head {
+    display: grid;
   }
 
   .stage-text {

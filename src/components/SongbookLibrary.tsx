@@ -13,8 +13,28 @@ type ChordInspector = {
   harmonicFunction?: string
 }
 
+type ScoreLibraryEntry = {
+  id: string
+  title: string
+  artistTag: string
+  artistLabel: string
+  collaboratorTags: string[]
+  collaboratorLabels: string[]
+  arrangement: string | null
+  caption: string
+  postUrl: string
+  pageCount: number
+  pages: string[]
+  searchText: string
+}
+
+type ScoreLibraryCatalog = {
+  entries: ScoreLibraryEntry[]
+}
+
 export function SongbookLibrary() {
   const [catalog, setCatalog] = useState<SongbookCatalog | null>(null)
+  const [scoreCatalog, setScoreCatalog] = useState<ScoreLibraryCatalog | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -25,10 +45,13 @@ export function SongbookLibrary() {
   const [favoriteSongIds, setFavoriteSongIds] = useLocalStorage<string[]>('songbook-favorite-ids', [])
   const [setlistSongIds, setSetlistSongIds] = useLocalStorage<string[]>('songbook-setlist-ids', [])
   const [songOverrides, setSongOverrides] = useLocalStorage<Record<string, string>>('songbook-text-overrides', {})
+  const [scoreLinkOverrides, setScoreLinkOverrides] = useLocalStorage<Record<string, string>>('songbook-score-link-overrides', {})
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null)
   const [selectedVersion, setSelectedVersion] = useLocalStorage<SongbookVersion>('songbook-selected-version', 'simplificada')
   const [editing, setEditing] = useState(false)
   const [draftText, setDraftText] = useState('')
+  const [manualScoreId, setManualScoreId] = useState('auto')
+  const [scoreReviewFilter, setScoreReviewFilter] = useState<'todas' | 'sem-vinculo' | 'manual' | 'automatico'>('todas')
   const [selectedChord, setSelectedChord] = useState<ChordInspector | null>(null)
 
   useEffect(() => {
@@ -38,10 +61,15 @@ export function SongbookLibrary() {
       try {
         setLoading(true)
         setError(null)
-        const response = await fetch(assetUrl('/songbook/catalog.json'))
-        if (!response.ok) throw new Error('Nao foi possivel carregar o repertorio.')
-        const payload = (await response.json()) as SongbookCatalog
+        const [songbookResponse, scoreResponse] = await Promise.all([
+          fetch(assetUrl('/songbook/catalog.json')),
+          fetch(assetUrl('/score-library/catalog.json')),
+        ])
+        if (!songbookResponse.ok) throw new Error('Nao foi possivel carregar o repertorio.')
+        const payload = (await songbookResponse.json()) as SongbookCatalog
+        const scorePayload = scoreResponse.ok ? ((await scoreResponse.json()) as ScoreLibraryCatalog) : null
         if (!cancelled) setCatalog(payload)
+        if (!cancelled) setScoreCatalog(scorePayload)
       } catch (caughtError) {
         const message = caughtError instanceof Error ? caughtError.message : 'Falha ao carregar o repertorio.'
         if (!cancelled) setError(message)
@@ -98,6 +126,14 @@ export function SongbookLibrary() {
     setDraftText(currentText)
   }, [currentText, selectedSongId, activeVersion])
 
+  useEffect(() => {
+    if (!selectedSong) {
+      setManualScoreId('auto')
+      return
+    }
+    setManualScoreId(scoreLinkOverrides[selectedSong.id] ?? 'auto')
+  }, [scoreLinkOverrides, selectedSong])
+
   const analysis = useMemo(() => {
     if (!selectedSong || !currentText) return null
     return analyzeHarmony(currentText, selectedSong.key)
@@ -107,6 +143,71 @@ export function SongbookLibrary() {
     if (!analysis) return []
     return buildHarmonicField(analysis.summary.detectedKey, analysis)
   }, [analysis])
+  const scoreCandidates = useMemo(() => {
+    if (!selectedSong || !scoreCatalog) return []
+    return buildScoreCandidates(selectedSong.title, selectedSong.artist, scoreCatalog.entries)
+  }, [scoreCatalog, selectedSong])
+  const linkedScores = useMemo(() => {
+    if (!selectedSong || !scoreCatalog) return []
+    const manualId = scoreLinkOverrides[selectedSong.id]
+    if (manualId) {
+      const manualEntry = scoreCatalog.entries.find((entry) => entry.id === manualId)
+      return manualEntry ? [manualEntry] : []
+    }
+    return scoreCandidates.slice(0, 2).map((item) => item.entry)
+  }, [scoreCandidates, scoreCatalog, scoreLinkOverrides, selectedSong])
+  const scoreLinkReview = useMemo(() => {
+    if (!catalog || !scoreCatalog) {
+      return {
+        total: 0,
+        automatic: 0,
+        manual: 0,
+        missing: 0,
+        items: [] as Array<{
+          id: string
+          title: string
+          artist: string
+          status: 'manual' | 'automatico' | 'sem-vinculo'
+          linkedLabel: string
+          bestCandidateId: string | null
+          bestCandidateLabel: string
+          bestCandidateScore: number
+        }>,
+      }
+    }
+
+    const items = catalog.entries.map((entry) => {
+      const manualId = scoreLinkOverrides[entry.id]
+      const manualEntry = manualId ? scoreCatalog.entries.find((score) => score.id === manualId) ?? null : null
+      const bestCandidate = buildScoreCandidates(entry.title, entry.artist, scoreCatalog.entries)[0] ?? null
+      const automaticEntry = bestCandidate?.entry ?? null
+      const linkedEntry = manualEntry ?? automaticEntry
+      const status: 'manual' | 'automatico' | 'sem-vinculo' = manualEntry ? 'manual' : automaticEntry ? 'automatico' : 'sem-vinculo'
+
+      return {
+        id: entry.id,
+        title: entry.title,
+        artist: entry.artist || 'Sem artista',
+        status,
+        linkedLabel: linkedEntry ? `${linkedEntry.title} - ${linkedEntry.artistLabel}` : 'Sem partitura vinculada',
+        bestCandidateId: bestCandidate?.entry.id ?? null,
+        bestCandidateLabel: bestCandidate ? `${bestCandidate.entry.title} - ${bestCandidate.entry.artistLabel}` : 'Sem sugestao forte',
+        bestCandidateScore: bestCandidate?.score ?? 0,
+      }
+    })
+
+    return {
+      total: items.length,
+      automatic: items.filter((item) => item.status === 'automatico').length,
+      manual: items.filter((item) => item.status === 'manual').length,
+      missing: items.filter((item) => item.status === 'sem-vinculo').length,
+      items,
+    }
+  }, [catalog, scoreCatalog, scoreLinkOverrides])
+  const visibleReviewItems = useMemo(() => {
+    if (scoreReviewFilter === 'todas') return scoreLinkReview.items
+    return scoreLinkReview.items.filter((item) => item.status === scoreReviewFilter)
+  }, [scoreLinkReview.items, scoreReviewFilter])
 
   function toggleFavorite(songId: string) {
     setFavoriteSongIds(
@@ -137,6 +238,46 @@ export function SongbookLibrary() {
     setSongOverrides(nextOverrides)
     setDraftText(baseVersionData.text)
     setEditing(false)
+  }
+
+  function saveScoreLink() {
+    if (!selectedSong) return
+    if (manualScoreId === 'auto') {
+      const next = { ...scoreLinkOverrides }
+      delete next[selectedSong.id]
+      setScoreLinkOverrides(next)
+      return
+    }
+    setScoreLinkOverrides({
+      ...scoreLinkOverrides,
+      [selectedSong.id]: manualScoreId,
+    })
+  }
+
+  function clearScoreLink() {
+    if (!selectedSong) return
+    const next = { ...scoreLinkOverrides }
+    delete next[selectedSong.id]
+    setScoreLinkOverrides(next)
+    setManualScoreId('auto')
+  }
+
+  function applyBulkSuggestedLinks() {
+    const next = { ...scoreLinkOverrides }
+    for (const item of scoreLinkReview.items) {
+      if (item.status === 'sem-vinculo' && item.bestCandidateId && item.bestCandidateScore >= 55) {
+        next[item.id] = item.bestCandidateId
+      }
+    }
+    setScoreLinkOverrides(next)
+  }
+
+  function applySuggestedLink(songId: string, candidateId: string | null) {
+    if (!candidateId) return
+    setScoreLinkOverrides({
+      ...scoreLinkOverrides,
+      [songId]: candidateId,
+    })
   }
 
   if (loading) {
@@ -201,6 +342,52 @@ export function SongbookLibrary() {
             </button>
           </label>
         </div>
+
+        <div className="songbook-link-review">
+          <div className="songbook-link-review-head">
+            <div>
+              <strong>Revisao de vinculos de partitura</strong>
+              <span className="muted">Veja o que ja foi ligado automaticamente, manualmente ou o que ainda falta revisar.</span>
+            </div>
+            <div className="songbook-link-review-controls">
+              <label>
+                <span>Filtrar revisao</span>
+                <select value={scoreReviewFilter} onChange={(event) => setScoreReviewFilter(event.target.value as 'todas' | 'sem-vinculo' | 'manual' | 'automatico')}>
+                  <option value="todas">Todas</option>
+                  <option value="sem-vinculo">Sem vinculo</option>
+                  <option value="manual">Manuais</option>
+                  <option value="automatico">Automaticos</option>
+                </select>
+              </label>
+              <button type="button" className="toggle-chip" onClick={applyBulkSuggestedLinks}>
+                Aplicar sugestoes em lote
+              </button>
+            </div>
+          </div>
+          <div className="songbook-link-review-stats">
+            <span>Total: {scoreLinkReview.total}</span>
+            <span>Automaticos: {scoreLinkReview.automatic}</span>
+            <span>Manuais: {scoreLinkReview.manual}</span>
+            <span>Sem vinculo: {scoreLinkReview.missing}</span>
+          </div>
+          <div className="songbook-link-review-items">
+            {visibleReviewItems.slice(0, 8).map((item) => (
+              <article key={item.id} className={`songbook-link-review-item songbook-link-review-item-${item.status}`}>
+                <button type="button" className="songbook-link-review-main" onClick={() => setSelectedSongId(item.id)}>
+                  <strong>{item.title}</strong>
+                  <span>{item.artist}</span>
+                  <small>{item.linkedLabel}</small>
+                  <small>Sugestao: {item.bestCandidateLabel} ({item.bestCandidateScore}%)</small>
+                </button>
+                {item.bestCandidateId ? (
+                  <button type="button" className="songbook-mini-btn" onClick={() => applySuggestedLink(item.id, item.bestCandidateId)}>
+                    Usar sugestao
+                  </button>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section className="songbook-layout">
@@ -260,6 +447,101 @@ export function SongbookLibrary() {
                 <button className="toggle-chip" onClick={() => addToSetlist(selectedSong.id)}>Adicionar a setlist</button>
                 <button className={`toggle-chip ${editing ? 'toggle-chip-active' : ''}`} onClick={() => setEditing(!editing)}>{editing ? 'Fechar editor' : 'Editar cifra'}</button>
                 {songOverrides[getOverrideKey(selectedSong.id, activeVersion)] && <button className="toggle-chip" onClick={resetEdit}>Restaurar original</button>}
+              </div>
+
+              <div className="songbook-complete-sheet">
+                <div className="songbook-complete-sheet-head">
+                  <strong>Ficha completa da musica</strong>
+                  <span className="muted">
+                    {linkedScores.length ? `${linkedScores.length} partitura(s) vinculada(s)` : 'Sem partitura vinculada automaticamente'}
+                  </span>
+                </div>
+                <div className="songbook-complete-grid">
+                  <article className="songbook-complete-card">
+                    <small>Repertorio</small>
+                    <strong>{selectedSong.title}</strong>
+                    <span>{selectedSong.artist || 'Sem artista'}</span>
+                    <p>{activeVersion === 'simplificada' ? 'Versao simplificada ativa' : 'Versao completa ativa'}</p>
+                  </article>
+                  <article className="songbook-complete-card">
+                    <small>Tom</small>
+                    <strong>{selectedSong.key ?? 'Sem tom'}</strong>
+                    <span>{analysis?.summary.detectedKey ?? 'Analise indisponivel'}</span>
+                    <p>{analysis ? `Modo ${analysis.summary.mode === 'major' ? 'maior' : 'menor'}` : 'Abra a cifra para analisar'}</p>
+                  </article>
+                  <article className="songbook-complete-card">
+                    <small>Harmonia</small>
+                    <strong>{analysis?.summary.cadenceLabels[0] ?? 'Fluxo principal'}</strong>
+                    <span>{analysis ? `${analysis.summary.uniqueChordCount} acordes unicos` : 'Sem leitura harmonica'}</span>
+                    <p>{analysis?.summary.secondaryDominants.length ? 'Com preparacoes internas' : 'Centro tonal mais estavel'}</p>
+                  </article>
+                  <article className="songbook-complete-card">
+                    <small>Partitura</small>
+                    <strong>{linkedScores[0]?.title ?? 'Nao localizada'}</strong>
+                    <span>{linkedScores[0]?.artistLabel ?? 'Biblioteca visual'}</span>
+                    <p>{linkedScores.length ? `${linkedScores[0].pageCount} pagina(s) prontas para abrir` : 'Tente localizar pela aba Biblioteca'}</p>
+                  </article>
+                </div>
+              </div>
+
+              <div className="songbook-linked-scores">
+                <div className="songbook-linked-scores-head">
+                  <strong>Partitura vinculada</strong>
+                  {linkedScores[0] ? (
+                    <a className="secondary-button" href={linkedScores[0].postUrl} target="_blank" rel="noreferrer">
+                      Abrir post original
+                    </a>
+                  ) : null}
+                </div>
+
+                <div className="songbook-score-linker">
+                  <label>
+                    <span>Vinculo manual da partitura</span>
+                    <select value={manualScoreId} onChange={(event) => setManualScoreId(event.target.value)}>
+                      <option value="auto">Usar correspondencia automatica</option>
+                      {scoreCandidates.map((candidate) => (
+                        <option key={candidate.entry.id} value={candidate.entry.id}>
+                          {candidate.entry.title} - {candidate.entry.artistLabel} ({candidate.score}%)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="songbook-score-linker-actions">
+                    <button className="toggle-chip toggle-chip-active" onClick={saveScoreLink}>Salvar vinculo</button>
+                    <button className="toggle-chip" onClick={clearScoreLink}>Limpar</button>
+                  </div>
+                </div>
+
+                {linkedScores.length ? (
+                  linkedScores.map((score) => (
+                    <article key={score.id} className="songbook-linked-score-card">
+                      <div className="songbook-linked-score-meta">
+                        <div>
+                          <strong>{score.title}</strong>
+                          <span>{score.artistLabel}</span>
+                        </div>
+                        <div className="songbook-meta-chips">
+                          <span>{score.pageCount} pagina(s)</span>
+                          {score.arrangement && <span>Arranjo: {score.arrangement}</span>}
+                        </div>
+                      </div>
+                      <p className="muted">{score.caption}</p>
+                      <div className="songbook-linked-score-pages">
+                        {score.pages.map((page, index) => (
+                          <a key={page} className="songbook-linked-score-page" href={assetUrl(page)} target="_blank" rel="noreferrer">
+                            <img src={assetUrl(page)} alt={`${score.title} - pagina ${index + 1}`} loading="lazy" />
+                            <span>Pagina {index + 1}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <article className="songbook-empty">
+                    <strong>Partitura nao encontrada automaticamente</strong>
+                    <span>A correspondencia usa nome da musica e artista. A aba Biblioteca continua disponivel para busca manual.</span>
+                  </article>
+                )}
               </div>
 
               {analysis && (
@@ -325,4 +607,49 @@ export function SongbookLibrary() {
       </section>
     </section>
   )
+}
+
+function buildScoreCandidates(title: string, artist: string, entries: ScoreLibraryEntry[]) {
+  const normalizedTitle = normalizeLookup(title)
+  const normalizedArtist = normalizeLookup(artist)
+
+  return entries
+    .map((entry) => {
+      let score = 0
+      const entryTitle = normalizeLookup(entry.title)
+      const entryArtist = normalizeLookup(entry.artistLabel)
+
+      if (entryTitle === normalizedTitle) {
+        score += 70
+      } else if (entryTitle.includes(normalizedTitle) || normalizedTitle.includes(entryTitle)) {
+        score += 48
+      }
+
+      if (normalizedArtist && (entryArtist === normalizedArtist || entry.artistTag === normalizedArtist)) {
+        score += 30
+      } else if (
+        normalizedArtist &&
+        (entryArtist.includes(normalizedArtist) ||
+          normalizedArtist.includes(entryArtist) ||
+          entry.collaboratorLabels.some((label) => normalizeLookup(label) === normalizedArtist))
+      ) {
+        score += 18
+      }
+
+      if (score === 0 && entry.searchText.includes(normalizedTitle)) {
+        score += 20
+      }
+
+      return { entry, score }
+    })
+    .filter((item) => item.score >= 25)
+    .sort((left, right) => right.score - left.score)
+}
+
+function normalizeLookup(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
 }
