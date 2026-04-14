@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "build:partituras": "python scripts/build_instagram_score_library.py",
+    "build:repertorio": "python scripts/build_songbook_library.py",
     "postinstall": "node scripts/copy-basic-pitch-model.mjs"
   },
   "dependencies": {

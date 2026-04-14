@@ -5,3 +5,5 @@ tsconfig.app.tsbuildinfo
 pdf_debug/
 *.local
 .env*
+downloads/
+tmp_instagram_profile.html
